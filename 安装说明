@@ -7,3 +7,57 @@ sudo apt install ros-melodic-desktop-full
 
 sudo rosdep init
 rosdep update
+在安装ROS时，很多同学都卡在 sudo rosdep init | rosdep update 两步上。主要原因是因为 www.rawgithubusercontent.com 这个网站被墙。
+
+$ sudo rosdep init
+ERROR: cannot download default sources list from:
+https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/sources.list.d/20-default.list
+Website may be down.
+sudo rosdep init 命令通过科学上网可以解决。但对于 rosdep update 命令找遍网上最流行的方法也收效甚微。
+
+$ rosdep update
+reading in sources list data from /etc/ros/rosdep/sources.list.d
+ERROR: error loading sources list:
+	('The read operation timed out')
+以下为亲测过的方法，至少对于本人而言无效：
+
+改用手机热点（玄学无用，切勿当真）
+改hosts文件附加 www.rawgithubusercontent.com 的IP地址（随着墙墙的壮大，能用的IP越来越少了）
+用 .github 代替 .rawgithub（本质无差）
+修改 TIMEOUT 值（此法治标不治本。它有点用，但不完全有用，建议还是使用下文的必杀招）
+山重水复疑无路，柳暗花明又一村。以下是至今为止我认知范围内 唯一 能够有效解决 rosdep update报错的方法——添加代理。原创大神的博客链接如下：
+
+解决ROS系统 rosdep update超时问题的新方法
+​blog.csdn.net/leida_wt/article/details/115120940?utm_medium=distribute.pc_relevant.none-task-blog-baidujs_baidulandingword-0&spm=1001.2101.3001.4242
+
+这里为大家写出详细的命令：
+
+打开包含资源下载函数的文件：
+$ sudo gedit /usr/lib/python2.7/dist-packages/rosdep2/sources_list.py
+2. 添加代理：
+
+url="https://ghproxy.com/"+url
+下面是代码修改的位置
+
+
+3. 修改/usr/lib/python2.7/dist-packages/rosdistro/__init__.py文件中的DEFAULT_INDEX_URL
+
+$ sudo gedit /usr/lib/python2.7/dist-packages/rosdistro/__init__.py
+DEFAULT_INDEX_URL = 'https://ghproxy.com/https://raw.githubusercontent.com/ros/rosdistro/master/index-v4.yaml'
+4. 修改其余（4个）文件中的地址，在地址 https://raw.githubusercontent.com/... 前添加https://ghproxy.com/
+
+$ sudo gedit /usr/lib/python2.7/dist-packages/rosdep2/gbpdistro_support.py
+//修改第36行的地址
+$ sudo gedit /usr/lib/python2.7/dist-packages/rosdep2/sources_list.py 72行
+//修改第72行
+$ sudo gedit /usr/lib/python2.7/dist-packages/rosdep2/rep3.py
+//修改第39行
+$ sudo gedit /usr/lib/python2.7/dist-packages/rosdistro/manifest_provider/github.py
+//修改第68行、119行
+5. 解决 Hit 第五个地址的报错
+
+$ sudo gedit /usr/lib/python2.7/dist-packages/rosdep2/gbpdistro_support.py 
+//在第204行添加如下代码（即在该函数块下的第一行处）
+gbpdistro_url = "https://ghproxy.com/" + gbpdistro_url
+//注意，原网址中代理地址的双引号是中文，直接粘贴复制会报字符识别错误
+6. 再次运行 rosdep update ，发现问题完美解决！
